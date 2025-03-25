@@ -68,15 +68,39 @@
         <label for="routeSelect">Select Bus Route:</label>
         <select id="routeSelect">
             <option value="">-- Select a Route --</option>
-            <option value="1">Route 1 (Star Ferry - Chuk Yuen Estate)</option>
-            <option value="5B">Route 5B (Kennedy Town - Causeway Bay)</option>
-            <!-- Add more routes as needed -->
         </select>
         <button onclick="fetchArrivalTimes()">Get Arrival Times</button>
         <div id="results"></div>
     </div>
 
     <script>
+        // Fetch all Citybus routes when the page loads
+        async function fetchAllRoutes() {
+            const companyId = 'CTB'; // Citybus company ID
+            const url = `https://rt.data.gov.hk/v2/transport/citybus/route/${companyId}`;
+            const routeSelect = document.getElementById('routeSelect');
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.data && data.data.length > 0) {
+                    data.data.forEach(route => {
+                        const option = document.createElement('option');
+                        option.value = route.route;
+                        option.text = `${route.route} (${route.orig_en} - ${route.dest_en})`;
+                        routeSelect.appendChild(option);
+                    });
+                } else {
+                    routeSelect.innerHTML += '<option value="">No routes available</option>';
+                }
+            } catch (error) {
+                console.error('Error fetching routes:', error);
+                routeSelect.innerHTML += '<option value="">Error loading routes</option>';
+            }
+        }
+
+        // Fetch arrival times for the selected route
         async function fetchArrivalTimes() {
             const route = document.getElementById('routeSelect').value;
             const resultsDiv = document.getElementById('results');
@@ -88,7 +112,7 @@
             }
 
             try {
-                // Example stop ID for simplicity; in a real app, you'd fetch stops dynamically
+                // Example stop ID (hardcoded for simplicity; ideally fetch dynamically)
                 const stopId = '001026'; // Example stop ID (e.g., Central)
                 const companyId = 'CTB'; // Citybus company ID
                 const url = `https://rt.data.gov.hk/v2/transport/citybus/eta/${companyId}/${route}/${stopId}`;
@@ -104,13 +128,16 @@
                         resultsDiv.innerHTML += `<p>Bus arriving at ${arrivalTime} (${minutesAway} mins away)</p>`;
                     });
                 } else {
-                    resultsDiv.innerHTML = 'No arrival data available.';
+                    resultsDiv.innerHTML = 'No arrival data available for this stop.';
                 }
             } catch (error) {
                 resultsDiv.innerHTML = 'Error fetching data. Please try again later.';
                 console.error('Error:', error);
             }
         }
+
+        // Load routes when the page loads
+        window.onload = fetchAllRoutes;
     </script>
 </body>
 </html>
