@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HK Bus Arrival Times</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        label {
+            font-size: 1.2em;
+            margin-right: 10px;
+        }
+
+        select, button {
+            padding: 10px;
+            font-size: 1em;
+            margin: 10px 0;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #results {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        #results p {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hong Kong Bus Arrival Times</h1>
+        <label for="routeSelect">Select Bus Route:</label>
+        <select id="routeSelect">
+            <option value="">-- Select a Route --</option>
+            <option value="1">Route 1 (Star Ferry - Chuk Yuen Estate)</option>
+            <option value="5B">Route 5B (Kennedy Town - Causeway Bay)</option>
+            <!-- Add more routes as needed -->
+        </select>
+        <button onclick="fetchArrivalTimes()">Get Arrival Times</button>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function fetchArrivalTimes() {
+            const route = document.getElementById('routeSelect').value;
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = 'Loading...';
+
+            if (!route) {
+                resultsDiv.innerHTML = 'Please select a route.';
+                return;
+            }
+
+            try {
+                // Example stop ID for simplicity; in a real app, you'd fetch stops dynamically
+                const stopId = '001026'; // Example stop ID (e.g., Central)
+                const companyId = 'CTB'; // Citybus company ID
+                const url = `https://rt.data.gov.hk/v2/transport/citybus/eta/${companyId}/${route}/${stopId}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.data && data.data.length > 0) {
+                    resultsDiv.innerHTML = '';
+                    data.data.forEach(eta => {
+                        const arrivalTime = new Date(eta.eta).toLocaleTimeString();
+                        const minutesAway = Math.round((new Date(eta.eta) - new Date()) / 60000);
+                        resultsDiv.innerHTML += `<p>Bus arriving at ${arrivalTime} (${minutesAway} mins away)</p>`;
+                    });
+                } else {
+                    resultsDiv.innerHTML = 'No arrival data available.';
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = 'Error fetching data. Please try again later.';
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
