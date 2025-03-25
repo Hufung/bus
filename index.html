@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HK Bus Arrival Times</title>
+    <title>HK Bus Arrival Times (KMB & Citybus)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -64,7 +64,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Hong Kong Bus Arrival Times</h1>
+        <h1>Hong Kong Bus Arrival Times (KMB & Citybus)</h1>
         <label for="routeSelect">Select Bus Route:</label>
         <select id="routeSelect">
             <option value="">-- Select a Route --</option>
@@ -74,7 +74,7 @@
     </div>
 
     <script>
-        // Fetch all routes for Citybus (CTB) and KMB
+        // Fetch all routes for KMB and Citybus
         async function fetchAllRoutes() {
             const routeSelect = document.getElementById('routeSelect');
             const companies = [
@@ -86,6 +86,7 @@
                 for (const company of companies) {
                     const url = `https://rt.data.gov.hk/v2/transport/citybus/route/${company.id}`;
                     const response = await fetch(url);
+                    if (!response.ok) throw new Error(`HTTP error for ${company.id}: ${response.status}`);
                     const data = await response.json();
 
                     if (data.data && data.data.length > 0) {
@@ -95,6 +96,8 @@
                             option.text = `${company.name}: ${route.route} (${route.orig_en} - ${route.dest_en})`;
                             routeSelect.appendChild(option);
                         });
+                    } else {
+                        console.warn(`No routes found for ${company.name}`);
                     }
                 }
             } catch (error) {
@@ -108,6 +111,7 @@
             const url = `https://rt.data.gov.hk/v2/transport/citybus/route-stop/${companyId}/${route}/outbound`;
             try {
                 const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 const data = await response.json();
                 return data.data || [];
             } catch (error) {
@@ -116,15 +120,30 @@
             }
         }
 
+        // Fetch stop details (name) for a given stop ID
+        async function fetchStopName(stopId) {
+            const url = `https://rt.data.gov.hk/v2/transport/citybus/stop/${stopId}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                const data = await response.json();
+                return data.data?.name_en || stopId;
+            } catch (error) {
+                console.error(`Error fetching stop name for ${stopId}:`, error);
+                return stopId;
+            }
+        }
+
         // Fetch ETA for a specific stop
         async function fetchETA(companyId, route, stopId) {
             const url = `https://rt.data.gov.hk/v2/transport/citybus/eta/${companyId}/${route}/${stopId}`;
             try {
                 const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 const data = await response.json();
                 return data.data || [];
             } catch (error) {
-                console.error(`Error fetching ETA for stop ${stopId}:`, error);
+                console.error(`Error fetching ETA for ${companyId}-${route} at stop ${stopId}:`, error);
                 return [];
             }
         }
@@ -146,13 +165,14 @@
                 // Fetch all stops for the route
                 const stops = await fetchRouteStops(companyId, route);
                 if (stops.length === 0) {
-                    resultsDiv.innerHTML = 'No stops found for this route.';
+                    resultsDiv.innerHTML = `No stops found for ${companyId}-${route}.`;
                     return;
                 }
 
-                resultsDiv.innerHTML = `<h3>${companyId}: ${route} Arrival Times</h3>`;
+                resultsDiv.innerHTML = `<h3>${companyId}: ${route} Arrival Times (Outbound)</h3>`;
                 const stopPromises = stops.map(async (stop, index) => {
                     const etaData = await fetchETA(companyId, route, stop.stop);
+                    const stopName = await fetchStopName(stop.stop);
                     let etaInfo = '';
                     if (etaData.length > 0 && etaData[0].eta) {
                         const arrivalTime = new Date(etaData[0].eta).toLocaleTimeString();
@@ -161,14 +181,14 @@
                     } else {
                         etaInfo = 'No ETA available';
                     }
-                    return `<p>Stop ${index + 1}: ${stop.stop} - ${etaInfo}</p>`;
+                    return `<p>Stop ${index + 1}: ${stopName} - ${etaInfo}</p>`;
                 });
 
                 const stopResults = await Promise.all(stopPromises);
                 resultsDiv.innerHTML += stopResults.join('');
             } catch (error) {
                 resultsDiv.innerHTML = 'Error fetching data. Please try again later.';
-                console.error('Error:', error);
+                console.error('Error in fetchArrivalTimes:', error);
             }
         }
 
