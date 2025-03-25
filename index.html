@@ -59,7 +59,7 @@
       </select>
     </section>
     <section>
-      <label for="route">Select Route:</label>
+     label for="route">Select Route:</label>
       <select id="route" disabled>
         <option value="" selected>Select a route</option>
       </select>
@@ -95,10 +95,16 @@
       const company = this.value;
       if (!company) return;
 
-      fetch(`https://api.example.com/${company}/routes`) // Replace with actual API endpoint
+      // Placeholder: Fetch route data from static resources or API
+      const routeApi = company === 'kmb' 
+        ? 'https://data.etabus.gov.hk/v1/transport/kmb/route.json' // Static route data
+        : 'https://rt.data.gov.hk/v2/transport/citybus/route/CTB'; // Citybus route API
+
+      fetch(routeApi)
         .then(response => response.json())
         .then(data => {
-          populateDropdown(routeSelect, data.routes, 'route_id', 'route_name');
+          const routes = company === 'kmb' ? data.data : data.routes; // Adjust based on API response
+          populateDropdown(routeSelect, routes, 'route', 'route'); // Adjust keys as per API
           routeSelect.disabled = false;
           resetDropdown(directionSelect);
           resetDropdown(stopSelect);
@@ -113,10 +119,18 @@
       const route = this.value;
       if (!route) return;
 
-      fetch(`https://api.example.com/${company}/routes/${route}/directions`) // Replace with actual endpoint
+      // Placeholder: Fetch direction data (KMB needs bound, Citybus may not)
+      const directionApi = company === 'kmb'
+        ? `https://data.etabus.gov.hk/v1/transport/kmb/route-stop/${route}` // Static route-stop data
+        : `https://rt.data.gov.hk/v2/transport/citybus/stop-route/CTB/${route}`; // Adjust as needed
+
+      fetch(directionApi)
         .then(response => response.json())
         .then(data => {
-          populateDropdown(directionSelect, data.directions, 'direction_id', 'direction_name');
+          const directions = company === 'kmb' 
+            ? [{direction_id: '1', direction_name: 'Outbound'}, {direction_id: '2', direction_name: 'Inbound'}] // Simplified
+            : data.directions || [{direction_id: '1', direction_name: 'Default'}]; // Citybus may not need direction
+          populateDropdown(directionSelect, directions, 'direction_id', 'direction_name');
           directionSelect.disabled = false;
           resetDropdown(stopSelect);
           arrivalTimesDiv.innerHTML = '<p>Select a stop to see arrival times.</p>';
@@ -131,10 +145,16 @@
       const direction = this.value;
       if (!direction) return;
 
-      fetch(`https://api.example.com/${company}/routes/${route}/stops?direction=${direction}`) // Replace with actual endpoint
+      // Placeholder: Fetch stop data
+      const stopApi = company === 'kmb'
+        ? `https://data.etabus.gov.hk/v1/transport/kmb/route-stop/${route}/${direction}` // Static stop data
+        : `https://rt.data.gov.hk/v2/transport/citybus/stop-route/CTB/${route}`; // Adjust as needed
+
+      fetch(stopApi)
         .then(response => response.json())
         .then(data => {
-          populateDropdown(stopSelect, data.stops, 'stop_id', 'stop_name');
+          const stops = company === 'kmb' ? data.data : data.stops; // Adjust based on API response
+          populateDropdown(stopSelect, stops, 'stop', 'stop_name'); // Adjust keys as per API
           stopSelect.disabled = false;
           arrivalTimesDiv.innerHTML = '<p>Select a stop to see arrival times.</p>';
         })
@@ -156,10 +176,15 @@
 
     // Helper function to fetch arrival times
     function fetchArrivalTimes(company, route, direction, stop) {
-      fetch(`https://api.example.com/${company}/eta?route=${route}&direction=${direction}&stop=${stop}`) // Replace with actual endpoint
+      const etaApi = company === 'kmb'
+        ? `http://etav3.kmb.hk/etaServlet?action=getETA&route=${route}&bound=${direction}&seq=${stop}&lang=0`
+        : `https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${stop}/${route}`;
+
+      fetch(etaApi)
         .then(response => response.json())
         .then(data => {
-          displayArrivalTimes(data.arrivals, stopSelect.options[stopSelect.selectedIndex].text);
+          const arrivals = company === 'kmb' ? data.response : data.data; // Adjust based on API response
+          displayArrivalTimes(arrivals, stopSelect.options[stopSelect.selectedIndex].text);
         })
         .catch(error => handleError('Error fetching arrival times', error));
     }
