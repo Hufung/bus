@@ -1,199 +1,210 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HK Bus Arrival Times (KMB & Citybus)</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hong Kong Bus Arrival Times</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
 
-        .container {
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
+    h1 {
+      text-align: center;
+    }
 
-        h1 {
-            color: #333;
-        }
+    section {
+      margin: 15px 0;
+    }
 
-        label {
-            font-size: 1.2em;
-            margin-right: 10px;
-        }
+    label {
+      display: inline-block;
+      width: 120px;
+    }
 
-        select, button {
-            padding: 10px;
-            font-size: 1em;
-            margin: 10px 0;
-        }
+    select {
+      padding: 5px;
+      width: 200px;
+    }
 
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+    #arrival-times {
+      margin-top: 20px;
+    }
 
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        #results {
-            margin-top: 20px;
-            text-align: left;
-        }
-
-        #results p {
-            background: #f9f9f9;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 5px 0;
-        }
-    </style>
+    @media (max-width: 600px) {
+      label {
+        display: block;
+        width: auto;
+      }
+      select {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Hong Kong Bus Arrival Times (KMB & Citybus)</h1>
-        <label for="routeSelect">Select Bus Route:</label>
-        <select id="routeSelect">
-            <option value="">-- Select a Route --</option>
-        </select>
-        <button onclick="fetchArrivalTimes()">Get Arrival Times</button>
-        <div id="results"></div>
-    </div>
+  <header>
+    <h1>Hong Kong Bus Arrival Times</h1>
+  </header>
+  <main>
+    <section>
+      <label for="company">Select Company:</label>
+      <select id="company">
+        <option value="" selected disabled>Select a company</option>
+        <option value="kmb">KMB</option>
+        <option value="citybus">Citybus</option>
+      </select>
+    </section>
+    <section>
+      <label for="route">Select Route:</label>
+      <select id="route" disabled>
+        <option value="" selected>Select a route</option>
+      </select>
+    </section>
+    <section>
+      <label for="direction">Select Direction:</label>
+      <select id="direction" disabled>
+        <option value="" selected>Select a direction</option>
+      </select>
+    </section>
+    <section>
+      <label for="stop">Select Stop:</label>
+      <select id="stop" disabled>
+        <option value="" selected>Select a stop</option>
+      </select>
+    </section>
+    <section id="arrival-times">
+      <p>Select a stop to see arrival times.</p>
+    </section>
+  </main>
+  <script>
+    // DOM elements
+    const companySelect = document.getElementById('company');
+    const routeSelect = document.getElementById('route');
+    const directionSelect = document.getElementById('direction');
+    const stopSelect = document.getElementById('stop');
+    const arrivalTimesDiv = document.getElementById('arrival-times');
 
-    <script>
-        // Fetch all routes for KMB and Citybus
-        async function fetchAllRoutes() {
-            const routeSelect = document.getElementById('routeSelect');
-            const companies = [
-                { id: 'CTB', name: 'Citybus' },
-                { id: 'KMB', name: 'KMB' }
-            ];
+    let refreshInterval;
 
-            try {
-                for (const company of companies) {
-                    const url = `https://rt.data.gov.hk/v2/transport/citybus/route/${company.id}`;
-                    const response = await fetch(url);
-                    if (!response.ok) throw new Error(`HTTP error for ${company.id}: ${response.status}`);
-                    const data = await response.json();
+    // Fetch routes when company is selected
+    companySelect.addEventListener('change', function() {
+      const company = this.value;
+      if (!company) return;
 
-                    if (data.data && data.data.length > 0) {
-                        data.data.forEach(route => {
-                            const option = document.createElement('option');
-                            option.value = `${company.id}-${route.route}`;
-                            option.text = `${company.name}: ${route.route} (${route.orig_en} - ${route.dest_en})`;
-                            routeSelect.appendChild(option);
-                        });
-                    } else {
-                        console.warn(`No routes found for ${company.name}`);
-                    }
-                }
-            } catch (error) {
-                console.error('Error fetching routes:', error);
-                routeSelect.innerHTML += '<option value="">Error loading routes</option>';
-            }
-        }
+      fetch(`https://api.example.com/${company}/routes`) // Replace with actual API endpoint
+        .then(response => response.json())
+        .then(data => {
+          populateDropdown(routeSelect, data.routes, 'route_id', 'route_name');
+          routeSelect.disabled = false;
+          resetDropdown(directionSelect);
+          resetDropdown(stopSelect);
+          arrivalTimesDiv.innerHTML = '<p>Select a stop to see arrival times.</p>';
+        })
+        .catch(error => handleError('Error fetching routes', error));
+    });
 
-        // Fetch all stops for a given route and company
-        async function fetchRouteStops(companyId, route) {
-            const url = `https://rt.data.gov.hk/v2/transport/citybus/route-stop/${companyId}/${route}/outbound`;
-            try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                const data = await response.json();
-                return data.data || [];
-            } catch (error) {
-                console.error(`Error fetching stops for ${companyId}-${route}:`, error);
-                return [];
-            }
-        }
+    // Fetch directions when route is selected
+    routeSelect.addEventListener('change', function() {
+      const company = companySelect.value;
+      const route = this.value;
+      if (!route) return;
 
-        // Fetch stop details (name) for a given stop ID
-        async function fetchStopName(stopId) {
-            const url = `https://rt.data.gov.hk/v2/transport/citybus/stop/${stopId}`;
-            try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                const data = await response.json();
-                return data.data?.name_en || stopId;
-            } catch (error) {
-                console.error(`Error fetching stop name for ${stopId}:`, error);
-                return stopId;
-            }
-        }
+      fetch(`https://api.example.com/${company}/routes/${route}/directions`) // Replace with actual endpoint
+        .then(response => response.json())
+        .then(data => {
+          populateDropdown(directionSelect, data.directions, 'direction_id', 'direction_name');
+          directionSelect.disabled = false;
+          resetDropdown(stopSelect);
+          arrivalTimesDiv.innerHTML = '<p>Select a stop to see arrival times.</p>';
+        })
+        .catch(error => handleError('Error fetching directions', error));
+    });
 
-        // Fetch ETA for a specific stop
-        async function fetchETA(companyId, route, stopId) {
-            const url = `https://rt.data.gov.hk/v2/transport/citybus/eta/${companyId}/${route}/${stopId}`;
-            try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                const data = await response.json();
-                return data.data || [];
-            } catch (error) {
-                console.error(`Error fetching ETA for ${companyId}-${route} at stop ${stopId}:`, error);
-                return [];
-            }
-        }
+    // Fetch stops when direction is selected
+    directionSelect.addEventListener('change', function() {
+      const company = companySelect.value;
+      const route = routeSelect.value;
+      const direction = this.value;
+      if (!direction) return;
 
-        // Fetch arrival times for all stops on the selected route
-        async function fetchArrivalTimes() {
-            const routeValue = document.getElementById('routeSelect').value;
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML = 'Loading...';
+      fetch(`https://api.example.com/${company}/routes/${route}/stops?direction=${direction}`) // Replace with actual endpoint
+        .then(response => response.json())
+        .then(data => {
+          populateDropdown(stopSelect, data.stops, 'stop_id', 'stop_name');
+          stopSelect.disabled = false;
+          arrivalTimesDiv.innerHTML = '<p>Select a stop to see arrival times.</p>';
+        })
+        .catch(error => handleError('Error fetching stops', error));
+    });
 
-            if (!routeValue) {
-                resultsDiv.innerHTML = 'Please select a route.';
-                return;
-            }
+    // Fetch and display arrival times when stop is selected
+    stopSelect.addEventListener('change', function() {
+      const company = companySelect.value;
+      const route = routeSelect.value;
+      const direction = directionSelect.value;
+      const stop = this.value;
+      if (!stop) return;
 
-            const [companyId, route] = routeValue.split('-');
+      clearInterval(refreshInterval); // Clear any existing refresh
+      fetchArrivalTimes(company, route, direction, stop);
+      refreshInterval = setInterval(() => fetchArrivalTimes(company, route, direction, stop), 30000); // Refresh every 30 seconds
+    });
 
-            try {
-                // Fetch all stops for the route
-                const stops = await fetchRouteStops(companyId, route);
-                if (stops.length === 0) {
-                    resultsDiv.innerHTML = `No stops found for ${companyId}-${route}.`;
-                    return;
-                }
+    // Helper function to fetch arrival times
+    function fetchArrivalTimes(company, route, direction, stop) {
+      fetch(`https://api.example.com/${company}/eta?route=${route}&direction=${direction}&stop=${stop}`) // Replace with actual endpoint
+        .then(response => response.json())
+        .then(data => {
+          displayArrivalTimes(data.arrivals, stopSelect.options[stopSelect.selectedIndex].text);
+        })
+        .catch(error => handleError('Error fetching arrival times', error));
+    }
 
-                resultsDiv.innerHTML = `<h3>${companyId}: ${route} Arrival Times (Outbound)</h3>`;
-                const stopPromises = stops.map(async (stop, index) => {
-                    const etaData = await fetchETA(companyId, route, stop.stop);
-                    const stopName = await fetchStopName(stop.stop);
-                    let etaInfo = '';
-                    if (etaData.length > 0 && etaData[0].eta) {
-                        const arrivalTime = new Date(etaData[0].eta).toLocaleTimeString();
-                        const minutesAway = Math.round((new Date(etaData[0].eta) - new Date()) / 60000);
-                        etaInfo = `${arrivalTime} (${minutesAway} mins away)`;
-                    } else {
-                        etaInfo = 'No ETA available';
-                    }
-                    return `<p>Stop ${index + 1}: ${stopName} - ${etaInfo}</p>`;
-                });
+    // Helper function to populate dropdowns
+    function populateDropdown(selectElement, items, valueKey, textKey) {
+      selectElement.innerHTML = '<option value="" selected>Select an option</option>';
+      items.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item[valueKey];
+        option.textContent = item[textKey];
+        selectElement.appendChild(option);
+      });
+    }
 
-                const stopResults = await Promise.all(stopPromises);
-                resultsDiv.innerHTML += stopResults.join('');
-            } catch (error) {
-                resultsDiv.innerHTML = 'Error fetching data. Please try again later.';
-                console.error('Error in fetchArrivalTimes:', error);
-            }
-        }
+    // Helper function to reset dropdowns
+    function resetDropdown(selectElement) {
+      selectElement.innerHTML = '<option value="" selected>Select an option</option>';
+      selectElement.disabled = true;
+    }
 
-        // Load routes when the page loads
-        window.onload = fetchAllRoutes;
-    </script>
+    // Helper function to display arrival times
+    function displayArrivalTimes(arrivals, stopName) {
+      if (!arrivals || arrivals.length === 0) {
+        arrivalTimesDiv.innerHTML = '<p>No buses scheduled in the next hour.</p>';
+        return;
+      }
+
+      const now = new Date();
+      let html = `<h3>Selected stop: ${stopName}</h3><p>Next buses:</p><ul>`;
+      arrivals.slice(0, 3).forEach(arrival => { // Show next 3 buses
+        const eta = new Date(arrival.eta); // Assuming ETA is in ISO format
+        const minutes = Math.round((eta - now) / 60000);
+        html += `<li>${eta.toLocaleTimeString()} (in ${minutes} minutes)</li>`;
+      });
+      html += '</ul>';
+      html += `<p>Last updated: ${now.toLocaleTimeString()}</p>`;
+      arrivalTimesDiv.innerHTML = html;
+    }
+
+    // Helper function for error handling
+    function handleError(message, error) {
+      console.error(message, error);
+      arrivalTimesDiv.innerHTML = '<p>Unable to fetch data. Please try again later.</p>';
+    }
+  </script>
 </body>
 </html>
